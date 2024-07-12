@@ -1,0 +1,13 @@
+# sample code
+misc/
+
+# Environments
+.env
+.venv
+.git
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.git/

@@ -1,0 +1,11 @@
+PyPDF2==3.0.1
+openpyxl==3.1.2
+streamlit==1.32.2
+streamlit_javascript==0.1.5
+langchain
+langchain-community
+langchain-aws  
+pymupdf 
+faiss-cpu
+python-dotenv
+
