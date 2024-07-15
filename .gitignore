@@ -7,6 +7,7 @@ misc/
 .git
 env/
 venv/
+example_files/
 ENV/
 env.bak/
 venv.bak/

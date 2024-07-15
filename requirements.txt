@@ -8,4 +8,5 @@ langchain-aws
 pymupdf 
 faiss-cpu
 python-dotenv
+unstructured[all-docs]
 
