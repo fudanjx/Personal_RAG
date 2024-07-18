@@ -4,9 +4,13 @@ streamlit==1.32.2
 streamlit_javascript==0.1.5
 langchain
 langchain-community
-langchain-aws  
+langchain-aws
 pymupdf 
 faiss-cpu
 python-dotenv
-unstructured[all-docs]
+# unstructured[all-docs]
+aiohttp
+asyncio
+boto3
+
 
