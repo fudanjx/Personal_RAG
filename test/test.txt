@@ -1,0 +1,5 @@
+101.44   120 batch 5 M
+125.76   50 batch
+114s     30 batch
+250.31 seconds 50 batch
+322.70 s 73mb PDF

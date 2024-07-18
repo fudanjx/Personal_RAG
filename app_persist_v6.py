@@ -3,10 +3,9 @@ import boto3
 import json
 import fitz  # PyMuPDF
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-# from langchain.vectorstores import FAISS
 from langchain_community.vectorstores import FAISS
-# from langchain_community.chat_models import BedrockChat
 from langchain_aws import ChatBedrock
+from langchain.memory import ConversationBufferWindowMemory
 from dotenv import load_dotenv
 import os
 import time
@@ -38,9 +37,8 @@ chat_model = ChatBedrock(
 )
 
 # BGE embedding configuration
-# BGE_API_URL = "http://dpo.asuscomm.com:8088/api/embeddings"
-BGE_API_URL = "http://dpo.asuscomm.com:8088/v1/embed"
-BATCH_SIZE = 30   #choose between 50 - 150 for optimal results
+BGE_API_URL = "http://dpo.asuscomm.com:8088/api/embeddings"
+BATCH_SIZE = 30   #choose between 30 - 100 for optimal results
 
 # Function to get a single embedding synchronously
 def get_single_embedding(text):
@@ -135,6 +133,10 @@ if 'vectorstore' not in st.session_state:
     st.session_state.vectorstore = None
 if 'processed_files' not in st.session_state:
     st.session_state.processed_files = set()
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "memory" not in st.session_state:
+    st.session_state.memory = ConversationBufferWindowMemory(k=5, return_messages=True)
 
 # File upload
 uploaded_files = st.file_uploader("Choose PDF files", type="pdf", accept_multiple_files=True)
@@ -177,40 +179,57 @@ if uploaded_files:
     else:
         st.success("All uploaded PDFs have already been processed and indexed.")
 
-# User input for questions
-user_question = st.text_input("Ask a question about the PDF content:")
+# Display chat messages from history on app rerun
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-if user_question and st.session_state.vectorstore:
-    # Perform similarity search
-    start_time = time.time()
-    question_embedding = get_single_embedding(user_question)
-    if question_embedding is None:
-        st.error("Failed to get embedding for the question. Please try again.")
-    else:
-        docs = st.session_state.vectorstore.similarity_search_by_vector(question_embedding, k=3)
-        retrieval_time = time.time() - start_time
-        st.write(f"Time for retrieving information from vector store: {retrieval_time:.2f} seconds")
-        
-        # Prepare context for the chat model
-        context = "\n".join([doc.page_content for doc in docs])
-        
-        # Prepare messages for the chat model
-        messages = [
-            {"role": "system", "content": "You are a helpful assistant. Answer the user's question based on the provided context from the PDFs."},
-            {"role": "user", "content": f"Context: {context}\n\nQuestion: {user_question}"}
-        ]
-        
-        try:
-            # Use the chat_model to generate a response with streaming
-            start_time = time.time()
-            response = chat_model.invoke(messages)
-            llm_time = time.time() - start_time
-            st.write(f"Time for LLM call processing: {llm_time:.2f} seconds")
+# Accept user input
+if prompt := st.chat_input("Ask a question about the PDF content:"):
+    # Add user message to chat history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    # Display user message in chat message container
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    if st.session_state.vectorstore:
+        # Perform similarity search
+        start_time = time.time()
+        question_embedding = get_single_embedding(prompt)
+        if question_embedding is None:
+            st.error("Failed to get embedding for the question. Please try again.")
+        else:
+            docs = st.session_state.vectorstore.similarity_search_by_vector(question_embedding, k=3)
+            retrieval_time = time.time() - start_time
+            st.write(f"Time for retrieving information from vector store: {retrieval_time:.2f} seconds")
             
-            # The streaming output is handled by the StreamlitCallbackHandler
+            # Prepare context for the chat model
+            context = "\n".join([doc.page_content for doc in docs])
+            
+            # Get chat history from memory
+            chat_history = st.session_state.memory.load_memory_variables({})["history"]
+            
+            # Prepare messages for the chat model
+            messages = [
+                {"role": "system", "content": "You are a helpful assistant. Answer the user's question based on the provided context from the PDFs and the conversation history."},
+                {"role": "user", "content": f"Context: {context}\n\nConversation history: {chat_history}\n\nQuestion: {prompt}"}
+            ]
+            
+            try:
+                # Use the chat_model to generate a response with streaming
+                start_time = time.time()
+                response = chat_model.invoke(messages)
+                llm_time = time.time() - start_time
+                st.write(f"Time for LLM call processing: {llm_time:.2f} seconds")
+                
+                # Add assistant response to chat history
+                assistant_response = response.content
+                st.session_state.messages.append({"role": "assistant", "content": assistant_response})
+                
+                # Update memory
+                st.session_state.memory.save_context({"input": prompt}, {"output": assistant_response})
 
-        except Exception as e:
-            st.error(f"An error occurred: {str(e)}")
-
-else:
-    st.info("Please upload PDF files to begin.")
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+    else:
+        st.info("Please upload PDF files to begin.")

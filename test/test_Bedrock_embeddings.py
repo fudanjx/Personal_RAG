@@ -22,7 +22,7 @@ bedrock_client = boto3.client(
 # Initialize Bedrock embeddings
 embeddings = BedrockEmbeddings(client=bedrock_client, model_id="cohere.embed-english-v3")
 
-CONCURRENT_REQUESTS = 30
+CONCURRENT_REQUESTS = 10
 
 async def get_embedding(text):
     start_time = time.time()

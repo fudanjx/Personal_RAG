@@ -1,8 +1,9 @@
 import aiohttp
 import asyncio
 import time
-
+# 
 BGE_API_URL = "http://dpo.asuscomm.com:8088/api/embeddings"
+# BGE_API_URL = "http://dpo.asuscomm.com:8088/v1/embed"
 CONCURRENT_REQUESTS = 1000
 
 async def get_embedding(session, text):
